@@ -1,15 +1,22 @@
 FROM golang:1.25.1-alpine AS builder
 
-# Ускоряем и делаем сборку воспроизводимой
-# RUN apk add --no-cache ca-certificates tzdata git build-base
-# ENV CGO_ENABLED=0 GOOS=linux GOARCH=amd64
-
 WORKDIR /app
 
-# Кэшируем зависимости
-# COPY go.mod go.sum ./
-COPY . .
+# файлы для резолва модулей
+COPY go.work ./go.work
+COPY libs/json/go.mod libs/json/go.mod
+COPY libs/utils_sql/go.mod libs/utils_sql/go.mod
+COPY doctors_service/go.mod doctors_service/go.mod
+
+
+# исходники только нужных модулей
+COPY libs/json/ libs/json/
+COPY libs/utils_sql/ libs/utils_sql/
+COPY doctors_service/ doctors_service/
+
 RUN go mod download 
+
+WORKDIR /app/doctors_service
 
 # Сборка
 RUN go build -trimpath -x -o /out/app ./cmd/app

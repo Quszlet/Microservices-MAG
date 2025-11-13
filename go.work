@@ -1,0 +1,7 @@
+go 1.25.1
+
+use (
+	./doctors_service
+	./libs/json
+	./libs/utils_sql
+)

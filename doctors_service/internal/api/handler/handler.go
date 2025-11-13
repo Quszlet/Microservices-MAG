@@ -1,14 +1,16 @@
 package handler
 
 import (
+	"github.com/Quszlet/doctors_service/internal/service"
 	"github.com/gorilla/mux"
 )
 
 type Handler struct {
+	services *service.Service
 }
 
-func NewHandler() *Handler {
-	return &Handler{}
+func NewHandler(s *service.Service) *Handler {
+	return &Handler{services: s}
 }
 
 func (h *Handler) InitRoutes() *mux.Router {
