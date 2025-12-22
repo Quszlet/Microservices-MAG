@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/Quszlet/libs/utils_sql"
 	"github.com/Quszlet/doctors_service/internal/models"
+	utilssql "github.com/Quszlet/libs/utils_sql"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -16,7 +16,6 @@ type DoctorPostgres struct {
 func NewDoctorPostgres(db *sqlx.DB) *DoctorPostgres {
 	return &DoctorPostgres{db: db}
 }
-
 
 func (up *DoctorPostgres) Create(doctor models.Doctor) (int, error) {
 	var id int
@@ -33,13 +32,11 @@ func (up *DoctorPostgres) Create(doctor models.Doctor) (int, error) {
 func (up *DoctorPostgres) Update(doctor map[string]any, where string) error {
 	q, args := utilssql.BuildUpdateQuery(doctorsTable, doctor, where)
 
-	fmt.Println(q);
-	
 	_, err := up.db.NamedExec(q, args)
 	if err != nil {
 		return err
 	}
-	
+
 	return nil
 }
 
@@ -48,6 +45,30 @@ func (up *DoctorPostgres) Get(doctorId int) (models.Doctor, error) {
 	query := fmt.Sprintf("SELECT * FROM %s WHERE id = $1", doctorsTable)
 	err := up.db.Get(&doctor, query, doctorId)
 	return doctor, err
+}
+
+func (up *DoctorPostgres) GetDoctorFields(doctorId int, fields []string) (map[string]any, error) {
+	result := make(map[string]any)
+	where := fmt.Sprintf("id = %d", doctorId)
+	q, args := utilssql.BuildGetQuery(doctorsTable, fields, where)
+
+	res, err := up.db.NamedQuery(q, args)
+	if err != nil {
+		return map[string]any{}, err
+	}
+
+	defer res.Close()
+	
+	if res.Next() {
+		err = res.MapScan(result)
+		if err != nil {
+			return map[string]any{}, err
+		}
+	} else {
+		return map[string]any{}, errors.New("doctor with this ID does not exist")
+	}
+
+	return result, nil
 }
 
 func (up *DoctorPostgres) Delete(doctorId int) error {

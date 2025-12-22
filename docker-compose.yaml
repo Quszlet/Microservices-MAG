@@ -9,7 +9,6 @@ services:
     ports:
       - "5432:5432"
     healthcheck:
-      # pg_isready уже есть внутри официального образа postgres
       test: ["CMD-SHELL", "pg_isready -U postgres -d postgres || exit 1"]
       interval: 5s       # как часто проверять
       timeout: 3s        # таймаут одной проверки
@@ -19,19 +18,170 @@ services:
       - ./pgdata:/var/lib/postgresql/data/pgdata
       - ./init:/docker-entrypoint-initdb.d
 
-  doctors_service:
+  kafka:
+    image: apache/kafka:latest
+    container_name: kafka
+    environment:
+      # KRaft mode (без Zookeeper)
+      - KAFKA_PROCESS_ROLES=controller,broker
+      - KAFKA_NODE_ID=1
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
+      
+      # Listeners
+      - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      
+      # Controller configuration
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+
+            # For single-node KRaft set internal topic replication factors to 1
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+      - KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR=1
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka-data:/kafka
+    restart: unless-stopped
+
+
+  doctors_service-1:
     image: doctors_service
+    container_name: doctor_service-1
     build:
       context: .                                  
       dockerfile: ./doctors_service/Dockerfile
     environment:
       PORT: "8080"
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
     depends_on:
       postgres:
         condition: service_healthy
 
+  doctors_service-2:
+    image: doctors_service
+    container_name: doctor_service-2
+    build:
+      context: .                                  
+      dockerfile: ./doctors_service/Dockerfile
+    environment:
+      PORT: "8080"
+    expose:
+      - "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  doctors_service-3:
+    image: doctors_service
+    container_name: doctor_service-3
+    build:
+      context: .                                  
+      dockerfile: ./doctors_service/Dockerfile
+    environment:
+      PORT: "8080"
+    expose:
+      - "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy       
+
+  schedule_service:
+    image: schedule_service
+    container_name: schedule_service
+    build:
+      context: .                                  
+      dockerfile: ./schedule_service/Dockerfile
+    environment:
+      PORT: "8090"
+    ports:
+      - "8090:8090"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  booking_service:
+    image: booking_service
+    container_name: booking_service
+    build:
+      context: .                                  
+      dockerfile: ./booking_service/Dockerfile
+    environment:
+      PORT: "8100"
+    ports:
+      - "8100:8100"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  gateway_service:
+    image: gateway_service
+    container_name: gateway_service
+    build:
+      context: .
+      dockerfile: ./gateway_service/Dockerfile
+    environment:
+      PORT: "8070"
+      DOCTORS_SERVICE_URL: "http://doctors_service-1:8080"
+      SCHEDULE_SERVICE_URL: "http://schedule_service:8090"
+      BOOKING_SERVICE_URL: "http://booking_service:8100"
+    ports:
+      - "8070:8070"
+    depends_on:
+      - doctors_service-1
+      - doctors_service-2
+      - doctors_service-3
+      - schedule_service
+      - booking_service
+
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      - booking_service
+      - doctors_service-1
+      - doctors_service-2
+      - doctors_service-3
+      - schedule_service
+
+  grafana:
+    image: grafana/grafana:11.0.0
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+  nginx:
+    image: nginx:latest
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - doctors_service-1
+      - doctors_service-2
+      - doctors_service-3
+
 volumes:
   pgdata:
-    driver: local # хранить на диске(в локальном хранилище)
+    driver: local
+  kafka-data:
+  prometheus-data:
+  grafana-data:

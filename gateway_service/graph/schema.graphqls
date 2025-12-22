@@ -1,0 +1,56 @@
+# GraphQL schema example
+#
+# https://gqlgen.com/getting-started/
+
+
+type Doctor {
+  id: Int!
+  name: String!
+  surname: String!
+  patronymic: String!
+  specialty: String!
+  clinic: String!
+  status_active: Boolean!
+}
+
+type TimeSlot {
+  id: Int!
+  doctor_id: Int!
+  date: Time!
+  start_time: Time!
+  end_time: Time!
+  is_available: Boolean!
+  created_at: Time!
+  updated_at: Time!
+}
+
+type Response {
+  message: String!
+}
+
+type Query {
+  doctor(id: Int!): Doctor
+  schedule(doctor_id: Int!, date: Time!): [TimeSlot]!
+}
+
+input NewDoctor {
+  name: String!
+  surname: String!
+  patronymic: String!
+  specialty: String!
+  clinic: String!
+  status_active: Boolean!
+}
+
+
+input DeleteDoctor {
+  id: Int!
+}
+
+type Mutation {
+  createDoctor(input: NewDoctor!): Doctor!
+  deleteDoctor(input: DeleteDoctor!): Response!
+}
+  
+
+scalar Time

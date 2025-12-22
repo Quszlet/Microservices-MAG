@@ -1,0 +1,19 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "booking_service"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["booking_service:8100"]
+
+  - job_name: "doctors_service"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["doctors_service-1:8080", "doctors_service-2:8080", "doctors_service-3:8080"]
+
+  - job_name: "schedule_service"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["schedule_service:8090"]

@@ -19,6 +19,10 @@ func (ds *DoctorService) Create(d models.Doctor) (int, error) {
 	return ds.repo.Create(d)
 }
 
+func (ds *DoctorService) GetDoctorFields(doctorId int, fields []string) (map[string]any, error) {
+	return ds.repo.GetDoctorFields(doctorId, fields)
+}
+
 func (ds *DoctorService) Update(d models.Doctor, where string) error {
 	md := structs.Map(d)
 	return ds.repo.Update(md, where)

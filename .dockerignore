@@ -1,0 +1,21 @@
+# Exclude DB runtime data and large/temporary folders from Docker build context
+pgdata
+**/pgdata
+**/base
+**/global
+**/pg_wal
+**/pg_xact
+*.log
+tmp
+.tmp
+.vscode
+.DS_Store
+node_modules
+# Build outputs
+/out
+**/out
+# Ignore local env and secrets
+.env
+.env.local
+# Ignore Dockerfiles from service folders if you don't want them in build context
+# (optional) Dockerfile

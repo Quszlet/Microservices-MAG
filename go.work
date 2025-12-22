@@ -2,6 +2,10 @@ go 1.25.1
 
 use (
 	./doctors_service
+	./schedule_service
+	./booking_service
 	./libs/json
+	./libs/kafka
 	./libs/utils_sql
+	./gateway_service
 )

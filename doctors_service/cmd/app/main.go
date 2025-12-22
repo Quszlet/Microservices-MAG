@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Quszlet/doctors_service/internal/api/handler"
+	"github.com/Quszlet/doctors_service/internal/kafka"
 	"github.com/Quszlet/doctors_service/internal/repository"
 	"github.com/Quszlet/doctors_service/internal/service"
 )
@@ -26,15 +27,20 @@ func main() {
 	})
 
 	if err != nil {
-		slog.Error("failed to initialize db: %s", err.Error())
+		slog.Error("failed to initialize db", "error", err)
 	}
 
 	repo := repository.NewRepository(db)
-
 	service := service.NewService(repo)
 
-	router := handler.NewHandler(service)
-	routes := router.InitRoutes();
+	producers, cleanupProducers, err := kafka.InitKafkaProducers()
+	if err != nil {
+		slog.Error("failed to initialize kafka producers", "error", err)
+	}
+	defer cleanupProducers()
+
+	router := handler.NewHandler(service, producers)
+	routes := router.InitRoutes()
 
 	srv := &http.Server{
 		Addr:           ":" + os.Getenv("PORT"),
